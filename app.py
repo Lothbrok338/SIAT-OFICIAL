@@ -89,9 +89,11 @@ with st.sidebar:
     else:
         st.markdown("<h2 style='color:white; text-align:center;'>UNIVALLE</h2>", unsafe_allow_html=True)
     
-    st.markdown("<h4 style='text-align: center;'>AUDITORÍA FINANCIERA</h4>", unsafe_allow_html=True)
+    # LEYENDA ACTUALIZADA
+    st.markdown("<h4 style='text-align: center;'>INSTRUMENTO DE CONTROL CONTABLE</h4>", unsafe_allow_html=True)
     st.divider()
     
+    st.write("### CONFIGURACIÓN")
     archivo_csv = st.file_uploader("Vincular Base SIAT (.csv)", type=['csv'])
     
     if archivo_csv:
@@ -104,20 +106,21 @@ with st.sidebar:
             st.error(f"Error: {e}")
     
     st.divider()
-    if st.button("🔄 Limpiar Todo", use_container_width=True):
+    if st.button("🔄 Reiniciar Sesión", use_container_width=True):
         st.session_state.registros_finales = []
         st.rerun()
 
 # --- INTERFAZ PRINCIPAL ---
 st.title("UNIVERSIDAD DEL VALLE S.A.")
-st.subheader("Extracción y Validación de Código CUF / Autorización")
+st.subheader("Módulo Centralizado de Procesamiento de Datos Fiscales")
 st.divider()
 
 if st.session_state.base_siat is not None:
-    st.markdown("### 📥 Entrada de Datos Fiscales")
-    urls_raw = st.text_area("Pegue las URLs del SIAT para procesar:", height=150, placeholder="https://siat.impuestos.gob.bo/consulta/...")
+    st.markdown("### 📥 Consolidación de Registros")
+    urls_raw = st.text_area("Depósito de URLs para procesamiento masivo:", height=150, placeholder="Pega aquí los enlaces para iniciar la validación...")
     
-    if st.button("🚀 PROCESAR Y EXTRAER CUF", type="primary", use_container_width=True):
+    # BOTÓN CON LEYENDA ACTUALIZADA
+    if st.button("🚀 EJECUTAR PROCESAMIENTO DE DATOS", type="primary", use_container_width=True):
         links = re.findall(r'https?://[^\s]+?(?=https?://|$)', urls_raw)
         base = st.session_state.base_siat
         agregados = 0
@@ -126,18 +129,15 @@ if st.session_state.base_siat is not None:
             try:
                 link_clean = link.strip().rstrip(',').rstrip(';')
                 params = parse_qs(urlparse(link_clean).query)
-                # Extracción del CUF desde la URL
                 cuf_extraido = params.get('cuf', [''])[0].strip()
                 
                 if not cuf_extraido:
                     continue
 
-                # Búsqueda en la base de datos cargada
                 match = base[base['CODIGO DE AUTORIZACION'] == cuf_extraido]
                 
                 if not match.empty:
                     item = match.iloc[0]
-                    # Validar duplicados en la lista actual
                     if not any(d['CUF / Autorización'] == cuf_extraido for d in st.session_state.registros_finales):
                         st.session_state.registros_finales.append({
                             "Fecha": item['FECHA DE FACTURA/DUI/DIM'],
@@ -145,21 +145,21 @@ if st.session_state.base_siat is not None:
                             "NIT": item['NIT PROVEEDOR'],
                             "Nro Factura": item['NUMERO FACTURA'],
                             "Monto (Bs)": item['IMPORTE TOTAL COMPRA'],
-                            "CUF / Autorización": cuf_extraido  # AQUÍ SE AGREGA EL CÓDIGO
+                            "CUF / Autorización": cuf_extraido
                         })
                         agregados += 1
             except:
                 continue
         
         if agregados > 0:
-            st.success(f"Proceso finalizado: Se extrajeron {agregados} códigos válidos.")
+            st.success(f"Procesamiento finalizado: {agregados} registros validados con éxito.")
         else:
-            st.warning("No se encontraron códigos nuevos o válidos en el lote.")
+            st.warning("No se identificaron nuevos datos para procesar en este lote.")
 
 # --- REPORTES Y EXPORTACIÓN ---
 if st.session_state.registros_finales:
     st.divider()
-    st.write("### 📊 Registros Procesados con CUF")
+    st.write("### 📊 Historial de Datos Procesados")
     
     for i, reg in enumerate(st.session_state.registros_finales):
         col_data, col_del = st.columns([12, 1])
@@ -177,24 +177,23 @@ if st.session_state.registros_finales:
                 st.session_state.registros_finales.pop(i)
                 st.rerun()
 
-    st.markdown("#### Vista Previa del Reporte Final")
+    st.markdown("#### Vista Previa del Informe")
     df_res = pd.DataFrame(st.session_state.registros_finales)
     st.dataframe(df_res, use_container_width=True)
     
-    # Generación de Excel
     buff = BytesIO()
     with pd.ExcelWriter(buff, engine='openpyxl') as w:
         df_res.to_excel(w, index=False)
     
     st.download_button(
-        label="📥 DESCARGAR REPORTE CON CUF (EXCEL)",
+        label="📥 DESCARGAR INFORME TÉCNICO (EXCEL)",
         data=buff.getvalue(),
-        file_name="Reporte_Fiscal_CUF_UNIVALLE.xlsx",
+        file_name="Procesamiento_Datos_UNIVALLE.xlsx",
         mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         use_container_width=True
     )
 else:
     if st.session_state.base_siat is None:
-        st.info("📌 Sistema listo. Por favor, vincule la base de datos SIAT para iniciar la extracción.")
+        st.info("📌 Sistema operativo. Por favor, vincule la base de datos maestra para iniciar el procesamiento.")
 
-st.markdown("<br><p style='text-align: center; color: #741b28; opacity: 0.6;'>UNIVALLE S.A. © 2026</p>", unsafe_allow_html=True)
+st.markdown("<br><p style='text-align: center; color: #741b28; opacity: 0.6;'>DEPARTAMENTO DE CONTABILIDAD | UNIVALLE S.A. © 2026</p>", unsafe_allow_html=True)
