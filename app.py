@@ -12,12 +12,11 @@ st.set_page_config(
     layout="wide"
 )
 
-# --- ESTILOS CSS PROFESIONALES (CORRECCIÓN DE VISIBILIDAD) ---
+# --- ESTILOS CSS PROFESIONALES ---
 st.markdown("""
 <style>
     .stApp { background-color: #fdf5e6; }
     
-    /* Barra Lateral Guindo Institucional */
     [data-testid="stSidebar"] { 
         background-color: #741b28 !important; 
         border-right: 2px solid #b8860b;
@@ -28,14 +27,12 @@ st.markdown("""
         font-weight: 500 !important;
     }
 
-    /* Panel de Carga - CORRECCIÓN DE TEXTO BLANCO */
     [data-testid="stFileUploader"] section {
         background-color: #1a1a1a !important;
         border: 1px dashed #b8860b !important;
         border-radius: 8px !important;
     }
     
-    /* Forzar visibilidad del nombre de archivo y metadatos siempre */
     [data-testid="stFileUploaderFileName"], 
     [data-testid="stFileUploaderFileData"], 
     [data-testid="stFileUploader"] small {
@@ -43,29 +40,24 @@ st.markdown("""
         opacity: 1 !important;
     }
 
-    /* Botón de Examinar Archivos */
     [data-testid="stFileUploader"] button {
         background-color: #741b28 !important;
         color: white !important;
         border: 1px solid #b8860b !important;
     }
 
-    /* Botón REINICIAR SESIÓN - Legibilidad permanente */
     .stButton > button { 
         border-radius: 4px; 
         font-weight: 600; 
         text-transform: uppercase;
-        transition: all 0.3s ease;
     }
     
-    /* Estilo para botones secundarios (como Reiniciar) */
     div.stButton > button:first-child:not([kind="primary"]) {
         background-color: #741b28 !important;
         color: #ffffff !important;
         border: 1px solid #b8860b !important;
     }
 
-    /* Estilo para botón PRINCIPAL */
     .stButton > button[kind="primary"] {
         background-color: #741b28 !important;
         color: #ffffff !important;
@@ -91,7 +83,6 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# --- LÓGICA DE PERSISTENCIA ---
 if 'base_siat' not in st.session_state:
     st.session_state.base_siat = None
 if 'registros_finales' not in st.session_state:
@@ -108,17 +99,28 @@ with st.sidebar:
     st.markdown("<h4 style='text-align: center;'>INSTRUMENTO DE CONTROL CONTABLE</h4>", unsafe_allow_html=True)
     st.divider()
     
-    # Se eliminó la palabra "Configuración"
     archivo_csv = st.file_uploader("Vincular Base SIAT (.csv)", type=['csv'])
     
     if archivo_csv:
         try:
-            df_siat = pd.read_csv(archivo_csv, sep=',', encoding='latin1', on_bad_lines='skip')
+            # Intento de lectura inteligente de encoding
+            content = archivo_csv.read()
+            try:
+                decoded_content = content.decode('utf-8')
+            except UnicodeDecodeError:
+                decoded_content = content.decode('latin1')
+            
+            from io import StringIO
+            df_siat = pd.read_csv(StringIO(decoded_content), sep=',', on_bad_lines='skip')
+            
+            # Limpieza de nombres de columnas y datos de texto
             df_siat.columns = [c.strip() for c in df_siat.columns]
+            df_siat = df_siat.applymap(lambda x: x.strip() if isinstance(x, str) else x)
+            
             st.session_state.base_siat = df_siat
-            st.success("✅ Base vinculada")
+            st.success("✅ Base vinculada correctamente")
         except Exception as e:
-            st.error(f"Error: {e}")
+            st.error(f"Error en la codificación: {e}")
     
     st.divider()
     if st.button("🔄 Reiniciar Sesión", use_container_width=True):
@@ -132,7 +134,7 @@ st.divider()
 
 if st.session_state.base_siat is not None:
     st.markdown("### 📥 Consolidación de Registros")
-    urls_raw = st.text_area("Depósito de URLs para procesamiento masivo:", height=150, placeholder="Pestaña de entrada para enlaces SIAT...")
+    urls_raw = st.text_area("Depósito de URLs para procesamiento masivo:", height=150)
     
     if st.button("🚀 EJECUTAR PROCESAMIENTO DE DATOS", type="primary", use_container_width=True):
         links = re.findall(r'https?://[^\s]+?(?=https?://|$)', urls_raw)
@@ -153,9 +155,12 @@ if st.session_state.base_siat is not None:
                 if not match.empty:
                     item = match.iloc[0]
                     if not any(d['CUF / Autorización'] == cuf_extraido for d in st.session_state.registros_finales):
+                        # Limpieza extra al extraer para evitar caracteres rotos
+                        razon_social = str(item['RAZON SOCIAL PROVEEDOR']).encode('latin1', errors='ignore').decode('utf-8', errors='ignore') if 'Ã' in str(item['RAZON SOCIAL PROVEEDOR']) else item['RAZON SOCIAL PROVEEDOR']
+                        
                         st.session_state.registros_finales.append({
                             "Fecha": item['FECHA DE FACTURA/DUI/DIM'],
-                            "Razón Social": item['RAZON SOCIAL PROVEEDOR'],
+                            "Razón Social": razon_social,
                             "NIT": item['NIT PROVEEDOR'],
                             "Nro Factura": item['NUMERO FACTURA'],
                             "Monto (Bs)": item['IMPORTE TOTAL COMPRA'],
@@ -168,9 +173,9 @@ if st.session_state.base_siat is not None:
         if agregados > 0:
             st.success(f"Procesamiento finalizado: {agregados} registros validados.")
         else:
-            st.warning("No se identificaron nuevos datos para procesar.")
+            st.warning("No se identificaron nuevos datos.")
 
-# --- REPORTES Y EXPORTACIÓN ---
+# --- REPORTES ---
 if st.session_state.registros_finales:
     st.divider()
     st.write("### 📊 Historial de Datos Procesados")
