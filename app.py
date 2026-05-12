@@ -12,7 +12,7 @@ st.set_page_config(
     layout="wide"
 )
 
-# --- ESTILOS CSS PROFESIONALES ---
+# --- ESTILOS CSS PROFESIONALES (CORRECCIÓN DE VISIBILIDAD) ---
 st.markdown("""
 <style>
     .stApp { background-color: #fdf5e6; }
@@ -28,34 +28,51 @@ st.markdown("""
         font-weight: 500 !important;
     }
 
-    /* Panel de Carga de Archivos */
+    /* Panel de Carga - CORRECCIÓN DE TEXTO BLANCO */
     [data-testid="stFileUploader"] section {
         background-color: #1a1a1a !important;
         border: 1px dashed #b8860b !important;
         border-radius: 8px !important;
     }
-    [data-testid="stFileUploaderDropzone"] {
-        background-color: #1a1a1a !important;
+    
+    /* Forzar visibilidad del nombre de archivo y metadatos siempre */
+    [data-testid="stFileUploaderFileName"], 
+    [data-testid="stFileUploaderFileData"], 
+    [data-testid="stFileUploader"] small {
+        color: #b8860b !important;
+        opacity: 1 !important;
     }
-    [data-testid="stFileUploader"] label, [data-testid="stFileUploader"] small,
-    [data-testid="stFileUploader"] div, [data-testid="stFileUploader"] svg {
-        color: #e0e0e0 !important; 
-        fill: #ffffff !important;
-    }
+
+    /* Botón de Examinar Archivos */
     [data-testid="stFileUploader"] button {
         background-color: #741b28 !important;
         color: white !important;
         border: 1px solid #b8860b !important;
     }
 
-    /* Estilos de Tipografía y Botones */
-    .stButton > button { border-radius: 4px; font-weight: 600; text-transform: uppercase; }
+    /* Botón REINICIAR SESIÓN - Legibilidad permanente */
+    .stButton > button { 
+        border-radius: 4px; 
+        font-weight: 600; 
+        text-transform: uppercase;
+        transition: all 0.3s ease;
+    }
+    
+    /* Estilo para botones secundarios (como Reiniciar) */
+    div.stButton > button:first-child:not([kind="primary"]) {
+        background-color: #741b28 !important;
+        color: #ffffff !important;
+        border: 1px solid #b8860b !important;
+    }
+
+    /* Estilo para botón PRINCIPAL */
     .stButton > button[kind="primary"] {
         background-color: #741b28 !important;
         color: #ffffff !important;
         border: 1px solid #b8860b !important;
         height: 3em;
     }
+    
     h1, h2, h3 { color: #741b28; font-family: 'Times New Roman', serif; }
     
     .factura-card {
@@ -70,7 +87,6 @@ st.markdown("""
         color: #b8860b;
         font-family: monospace;
         font-weight: bold;
-        font-size: 0.9em;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -89,11 +105,10 @@ with st.sidebar:
     else:
         st.markdown("<h2 style='color:white; text-align:center;'>UNIVALLE</h2>", unsafe_allow_html=True)
     
-    # LEYENDA ACTUALIZADA
     st.markdown("<h4 style='text-align: center;'>INSTRUMENTO DE CONTROL CONTABLE</h4>", unsafe_allow_html=True)
     st.divider()
     
-    st.write("### CONFIGURACIÓN")
+    # Se eliminó la palabra "Configuración"
     archivo_csv = st.file_uploader("Vincular Base SIAT (.csv)", type=['csv'])
     
     if archivo_csv:
@@ -117,9 +132,8 @@ st.divider()
 
 if st.session_state.base_siat is not None:
     st.markdown("### 📥 Consolidación de Registros")
-    urls_raw = st.text_area("Depósito de URLs para procesamiento masivo:", height=150, placeholder="Pega aquí los enlaces para iniciar la validación...")
+    urls_raw = st.text_area("Depósito de URLs para procesamiento masivo:", height=150, placeholder="Pestaña de entrada para enlaces SIAT...")
     
-    # BOTÓN CON LEYENDA ACTUALIZADA
     if st.button("🚀 EJECUTAR PROCESAMIENTO DE DATOS", type="primary", use_container_width=True):
         links = re.findall(r'https?://[^\s]+?(?=https?://|$)', urls_raw)
         base = st.session_state.base_siat
@@ -152,9 +166,9 @@ if st.session_state.base_siat is not None:
                 continue
         
         if agregados > 0:
-            st.success(f"Procesamiento finalizado: {agregados} registros validados con éxito.")
+            st.success(f"Procesamiento finalizado: {agregados} registros validados.")
         else:
-            st.warning("No se identificaron nuevos datos para procesar en este lote.")
+            st.warning("No se identificaron nuevos datos para procesar.")
 
 # --- REPORTES Y EXPORTACIÓN ---
 if st.session_state.registros_finales:
@@ -194,6 +208,6 @@ if st.session_state.registros_finales:
     )
 else:
     if st.session_state.base_siat is None:
-        st.info("📌 Sistema operativo. Por favor, vincule la base de datos maestra para iniciar el procesamiento.")
+        st.info("📌 Sistema operativo. Por favor, vincule la base de datos maestra para iniciar.")
 
 st.markdown("<br><p style='text-align: center; color: #741b28; opacity: 0.6;'>DEPARTAMENTO DE CONTABILIDAD | UNIVALLE S.A. © 2026</p>", unsafe_allow_html=True)
