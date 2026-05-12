@@ -1,7 +1,7 @@
 import streamlit as st
 import pandas as pd
 from urllib.parse import urlparse, parse_qs
-from io import BytesIO
+from io import BytesIO, StringIO
 import os
 import re
 
@@ -103,24 +103,23 @@ with st.sidebar:
     
     if archivo_csv:
         try:
-            # Intento de lectura inteligente de encoding
             content = archivo_csv.read()
+            # Detección de encoding
             try:
                 decoded_content = content.decode('utf-8')
             except UnicodeDecodeError:
                 decoded_content = content.decode('latin1')
             
-            from io import StringIO
             df_siat = pd.read_csv(StringIO(decoded_content), sep=',', on_bad_lines='skip')
             
-            # Limpieza de nombres de columnas y datos de texto
+            # SOLUCIÓN AL ERROR: Usar .map() en lugar de .applymap()
             df_siat.columns = [c.strip() for c in df_siat.columns]
-            df_siat = df_siat.applymap(lambda x: x.strip() if isinstance(x, str) else x)
+            df_siat = df_siat.map(lambda x: x.strip() if isinstance(x, str) else x)
             
             st.session_state.base_siat = df_siat
             st.success("✅ Base vinculada correctamente")
         except Exception as e:
-            st.error(f"Error en la codificación: {e}")
+            st.error(f"Error en la lectura: {e}")
     
     st.divider()
     if st.button("🔄 Reiniciar Sesión", use_container_width=True):
@@ -155,8 +154,17 @@ if st.session_state.base_siat is not None:
                 if not match.empty:
                     item = match.iloc[0]
                     if not any(d['CUF / Autorización'] == cuf_extraido for d in st.session_state.registros_finales):
-                        # Limpieza extra al extraer para evitar caracteres rotos
-                        razon_social = str(item['RAZON SOCIAL PROVEEDOR']).encode('latin1', errors='ignore').decode('utf-8', errors='ignore') if 'Ã' in str(item['RAZON SOCIAL PROVEEDOR']) else item['RAZON SOCIAL PROVEEDOR']
+                        
+                        # Limpieza de acentos para Razón Social
+                        rs_raw = str(item['RAZON SOCIAL PROVEEDOR'])
+                        try:
+                            # Si detectamos el patrón de error común en UTF-8 leído como Latin1
+                            if "Ã" in rs_raw:
+                                razon_social = rs_raw.encode('latin1').decode('utf-8')
+                            else:
+                                razon_social = rs_raw
+                        except:
+                            razon_social = rs_raw
                         
                         st.session_state.registros_finales.append({
                             "Fecha": item['FECHA DE FACTURA/DUI/DIM'],
