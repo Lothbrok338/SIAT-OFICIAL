@@ -235,3 +235,29 @@ def test_archivo_en_casilla_equivocada():
     banco = _xlsx([["fecha", "Código de transacción", "Créditos"], [datetime(2026, 10, 1), "3P1", 10]])
     with pytest.raises(ErrorFuente):
         leer("x.xlsx", banco, "SINTESIS")
+
+
+def test_diferencia_con_ajuste_libera_y_genera_linea():
+    t = datetime(2026, 10, 2, 15, 16, 31)
+    fs = [fac(1, 1106, "SALAZAR VEGA MARCO ANTONIO", date(2026, 10, 8))]
+    ps = [pago("CCC333", 1106, "Marco Antonio Salazar Vega", t, datetime(2026, 10, 8, 8, 49))]
+    ab = [abono("3P00000099", 1107, date(2026, 10, 2), luka="CCC333")]
+    dec = [{"factura": 16001, "asignacion": "3P00000099", "ajuste_cuenta": "420101010"}]
+    c = Conciliador(*fuentes(fs, ps, ab), dec, Parametros())
+    res = c.ejecutar()
+    assert res["asiento_liberable"], res["bloqueos"]
+    assert res["conciliadas"][0]["ajuste"]["lado"] == "HABER"
+    filas = asiento_filas(res["_enlaces"], Parametros())
+    assert [f["tipo"] for f in filas] == ["QR", "AJUSTE"]
+    aj = filas[1]["valores"]
+    assert aj[11] == 1.0 and aj[12] == "3P00000099" and aj[14] == "420101010" and "HABER" in aj[16]
+    # el ajuste viaja en la hoja DECISIONES y se relee
+    xlsx = construir_excel(res, Parametros())
+    d = leer("prev.xlsx", xlsx)
+    assert d.tipo == "DECISIONES" and d.registros[0]["ajuste_cuenta"] == "420101010"
+    assert d.registros[0]["asignacion"] == "3P00000099"
+
+
+def test_banco_menor_ajuste_al_debe():
+    r = run([fac(1, 500, "A B")], [], [abono("3PX", 498, D)], [{"factura": 16001, "asignacion": "3PX", "ajuste_cuenta": "420101010"}])
+    assert r["conciliadas"][0]["ajuste"]["lado"] == "DEBE" and r["asiento_liberable"]

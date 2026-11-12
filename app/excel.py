@@ -17,6 +17,7 @@ F_HEAD = PatternFill("solid", fgColor=NAVY)
 F_SOFT = PatternFill("solid", fgColor="EEF2F7")
 F_CARD = PatternFill("solid", fgColor="FCE4D6")
 F_COMM = PatternFill("solid", fgColor="FFF2CC")
+F_ADJ = PatternFill("solid", fgColor="E8E0F3")
 F_WARN = PatternFill("solid", fgColor="FDECEC")
 F_OK = PatternFill("solid", fgColor="E6F4EA")
 WHITE_B = Font(bold=True, color="FFFFFF")
@@ -48,10 +49,17 @@ def asiento_filas(enlaces: list[Enlace], p: Parametros) -> list[dict]:
             continue
         asig = e.abono.asig if e.abono else getattr(e, "asig_manual", "")
         obs = "QR - CONFIRMADO MANUAL" if e.regla == "M" else "QR"
-        if e.diferencia_c:
+        if e.diferencia_c and e.ajuste:
+            obs += f" · DIFERENCIA Bs {e.diferencia_c/100:,.2f} AJUSTADA EN {e.ajuste['cuenta']}"
+        elif e.diferencia_c:
             obs += f" · DIFERENCIA Bs {e.diferencia_c/100:,.2f} REQUIERE AJUSTE"
         filas.append({"tipo": "QR", "valores": base(e) + [e.monto_banco_c / 100, asig, e.diferencia_c / 100,
                                                          p.cuenta_qr, glosa(p, e.factura.factura, e.factura.alumno), obs]})
+        if e.diferencia_c and e.ajuste:
+            a = e.ajuste
+            filas.append({"tipo": "AJUSTE", "valores": base(e) + [abs(e.diferencia_c) / 100, a["asignacion"], 0, a["cuenta"],
+                                                                 a["texto"][: p.max_glosa],
+                                                                 f"AJUSTE DIFERENCIA ({a['lado']}) F-{e.factura.factura}"]})
     for e in conc:
         if e.regla != "R4":
             continue
@@ -163,6 +171,8 @@ def construir_excel(res: dict, p: Parametros) -> bytes:
                 c.fill = F_CARD
             elif fila["tipo"] == "COMISION":
                 c.fill = F_COMM
+            elif fila["tipo"] == "AJUSTE":
+                c.fill = F_ADJ
         ws.cell(row=i, column=13).number_format = "@"
         ws.cell(row=i, column=15).number_format = "@"
         _fmt(ws, i, (8, 9, 10, 11, 12, 14), (2,))
@@ -241,16 +251,19 @@ def construir_excel(res: dict, p: Parametros) -> bytes:
 
     # ---------------- DECISIONES
     ws = wb.create_sheet("DECISIONES")
-    cols = ["Factura", "Asignacion", "Fecha banco", "Monto banco", "Neto factura", "Diferencia", "Nota", "Decision ID"]
+    cols = ["Factura", "Asignacion", "Fecha banco", "Monto banco", "Neto factura", "Diferencia", "Nota", "Decision ID",
+            "Cuenta ajuste", "Asignacion ajuste", "Texto ajuste"]
     _title(ws, "DECISIONES MANUALES",
            "Para reutilizarlas: agrega filas aquí (Factura + Asignación; Fecha y Monto si el abono no está en el extracto) y carga este libro como 4.º archivo.")
-    _header(ws, 4, cols, [10, 16, 12, 12, 12, 11, 50, 20])
+    _header(ws, 4, cols, [10, 16, 12, 12, 12, 11, 50, 14, 14, 16, 30])
     for i, e in enumerate([e for e in enlaces if e.regla == "M"], 5):
         vals = [e.factura.factura, getattr(e, "asig_manual", ""), e.fecha_banco, e.monto_banco_c / 100,
-                e.factura.neto_c / 100, e.diferencia_c / 100, e.nota_manual, f"D-{e.factura.factura}"]
+                e.factura.neto_c / 100, e.diferencia_c / 100, e.nota_manual, f"D-{e.factura.factura}",
+                (e.ajuste or {}).get("cuenta"), (e.ajuste or {}).get("asignacion"), (e.ajuste or {}).get("texto")]
         for j, v in enumerate(vals, 1):
             ws.cell(row=i, column=j, value=v)
         ws.cell(row=i, column=2).number_format = "@"
+        ws.cell(row=i, column=9).number_format = "@"
         _fmt(ws, i, (4, 5, 6), (3,))
 
     # ---------------- FUENTES

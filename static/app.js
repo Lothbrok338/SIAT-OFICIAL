@@ -269,7 +269,7 @@
         <div class="exc-head"><h3>F-${x.factura} · ${esc(x.alumno)}</h3><span class="amt">Bs ${fmtBs(x.neto)}</span></div>
         <div class="exc-meta">${fmtD(x.fecha)} · ${esc(x.metodo || "sin método")}${x.codigo_luka ? ` · LUKA ${esc(x.codigo_luka)}` : ""}${x.intento_luka ? ` · intento ${esc(x.intento_luka)}` : ""}${x.codigo_estudiante ? ` · ${esc(x.codigo_estudiante)}` : ""}</div>
         <div class="exc-why"><b>Motivo:</b> ${esc(x.motivo)}</div>
-        ${dec ? `<p class="tag-ok">Decisión registrada: asignación ${esc(dec.asignacion)}. Pulsa «Reprocesar con decisiones».</p>` : ""}
+        ${dec ? `<p class="tag-ok">Decisión registrada: asignación ${esc(dec.asignacion)}${dec.ajuste_cuenta ? ` · ajuste en ${esc(dec.ajuste_cuenta)}` : ""}. Pulsa «Reprocesar con decisiones».</p>` : ""}
         ${props}
         <div class="manual-title">Registrar manualmente</div>
         <form class="manual" data-manual="${x.factura}">
@@ -277,6 +277,7 @@
           <label>Fecha banco<input name="fecha_banco" type="date"></label>
           <label>Monto banco<input name="monto_banco" inputmode="decimal" placeholder="${x.neto}"></label>
           <label>Nota<input name="nota" placeholder="Quién depositó, referencia…"></label>
+          <label title="Se usa solo si el monto del banco difiere de la factura">Cuenta ajuste<input name="ajuste_cuenta" value="${esc(params().cuenta_diferencias || "")}"></label>
           <button class="btn sm" type="submit">Registrar</button>
         </form>
       </article>`;
@@ -285,20 +286,48 @@
 
   $("#paneExc").addEventListener("click", (e) => {
     const b = e.target.closest("[data-approve]");
-    if (!b) return;
-    const x = state.result.excepciones.find((v) => v.factura === +b.dataset.approve);
-    const p = x.propuestas[+b.dataset.k];
-    if (p.diferencia && !confirm(`El abono es Bs ${fmtBs(p.monto)} y la factura Bs ${fmtBs(x.neto)}. Diferencia Bs ${fmtBs(p.diferencia)}.\nSe registrará la diferencia y el asiento no se liberará hasta su ajuste. ¿Aprobar?`)) return;
-    addDecision({ factura: x.factura, asignacion: p.asignacion, fecha_banco: p.fecha, monto_banco: p.monto, nota: `Propuesta aprobada: ${p.motivo}` });
+    if (b) {
+      const x = state.result.excepciones.find((v) => v.factura === +b.dataset.approve);
+      const p = x.propuestas[+b.dataset.k];
+      if (!p.diferencia) {
+        addDecision({ factura: x.factura, asignacion: p.asignacion, fecha_banco: p.fecha, monto_banco: p.monto, nota: `Propuesta aprobada: ${p.motivo}` });
+        return;
+      }
+      const card = b.closest(".exc");
+      card.querySelector(".ajuste")?.remove();
+      const lado = p.diferencia < 0 ? "HABER" : "DEBE";
+      card.insertAdjacentHTML("beforeend", `<form class="ajuste" data-ajuste="${x.factura}" data-k="${b.dataset.k}">
+        <p><b>Ajuste de la diferencia:</b> el banco abonó Bs ${fmtBs(p.monto)} y la factura es Bs ${fmtBs(x.neto)}. Se generará una línea de Bs ${fmtBs(Math.abs(p.diferencia))} al <b>${lado}</b>. Revisa y confirma.</p>
+        <div class="manual">
+          <label>Cuenta ajuste<input name="ajuste_cuenta" required value="${esc(params().cuenta_diferencias || "")}"></label>
+          <label>Asignación ajuste<input name="ajuste_asignacion" required value="${esc(p.asignacion)}"></label>
+          <label>Texto / glosa<input name="ajuste_texto" maxlength="50" value="AJ F-${x.factura} DIF BANCO"></label>
+          <label>Nota<input name="nota" placeholder="Motivo de la diferencia"></label>
+          <button class="btn sm primary" type="submit">Confirmar con ajuste</button>
+        </div></form>`);
+      card.querySelector(".ajuste input").focus();
+    }
   });
   $("#paneExc").addEventListener("submit", (e) => {
+    e.preventDefault();
+    const aj = e.target.closest("[data-ajuste]");
+    if (aj) {
+      const x = state.result.excepciones.find((v) => v.factura === +aj.dataset.ajuste);
+      const p = x.propuestas[+aj.dataset.k];
+      const d = Object.fromEntries(new FormData(aj));
+      addDecision({ factura: x.factura, asignacion: p.asignacion, fecha_banco: p.fecha, monto_banco: p.monto,
+        nota: d.nota || `Propuesta aprobada: ${p.motivo}`, ajuste_cuenta: d.ajuste_cuenta.trim(),
+        ajuste_asignacion: d.ajuste_asignacion.trim(), ajuste_texto: d.ajuste_texto.trim() });
+      return;
+    }
     const f = e.target.closest("[data-manual]");
     if (!f) return;
-    e.preventDefault();
     const d = Object.fromEntries(new FormData(f));
     const raw = String(d.monto_banco || "").trim();
     const monto = raw ? parseFloat(raw.includes(",") ? raw.replace(/\./g, "").replace(",", ".") : raw) : null;
-    addDecision({ factura: +f.dataset.manual, asignacion: d.asignacion.trim(), fecha_banco: d.fecha_banco || null, monto_banco: Number.isFinite(monto) ? monto : null, nota: d.nota || "Confirmación manual" });
+    addDecision({ factura: +f.dataset.manual, asignacion: d.asignacion.trim(), fecha_banco: d.fecha_banco || null,
+      monto_banco: Number.isFinite(monto) ? monto : null, nota: d.nota || "Confirmación manual",
+      ajuste_cuenta: (d.ajuste_cuenta || "").trim(), ajuste_asignacion: d.asignacion.trim() });
   });
 
   function addDecision(d) {
@@ -311,7 +340,7 @@
   function renderDecisions() {
     const box = $("#decisionsBox");
     box.hidden = !state.decisiones.length;
-    $("#decisionsList").innerHTML = state.decisiones.map((d) => `<li>F-${d.factura} → ${esc(d.asignacion)}<button title="Quitar" data-undo="${d.factura}">✕</button></li>`).join("");
+    $("#decisionsList").innerHTML = state.decisiones.map((d) => `<li>F-${d.factura} → ${esc(d.asignacion)}${d.ajuste_cuenta ? ` · aj. ${esc(d.ajuste_cuenta)}` : ""}<button title="Quitar" data-undo="${d.factura}">✕</button></li>`).join("");
   }
   $("#decisionsList").addEventListener("click", (e) => {
     const u = e.target.closest("[data-undo]");

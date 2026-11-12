@@ -42,6 +42,7 @@ class Parametros:
     cuenta_qr: str = "110103012"
     cuenta_tarjeta: str = "110103012"
     cuenta_comision: str = "110201007"
+    cuenta_diferencias: str = "420101010"   # Varios otros: ajuste de diferencias confirmadas
     prefijo_glosa: str = "F-"
     max_glosa: int = 50
     receptor: str = ""                 # vacio = deteccion automatica
@@ -58,7 +59,7 @@ class Parametros:
         for k in ("max_dias_linkser", "ventana_segundos", "max_glosa"):
             if d.get(k) not in (None, ""):
                 setattr(p, k, int(d[k]))
-        for k in ("cuenta_qr", "cuenta_tarjeta", "cuenta_comision", "prefijo_glosa", "receptor"):
+        for k in ("cuenta_qr", "cuenta_tarjeta", "cuenta_comision", "cuenta_diferencias", "prefijo_glosa", "receptor"):
             if d.get(k) is not None:
                 setattr(p, k, str(d[k]).strip())
         p.receptor = p.receptor.upper()
@@ -70,6 +71,7 @@ class Parametros:
             "comision_tarjeta": float(self.comision_tarjeta), "max_dias_linkser": self.max_dias_linkser,
             "ventana_segundos": self.ventana_segundos, "cuenta_qr": self.cuenta_qr,
             "cuenta_tarjeta": self.cuenta_tarjeta, "cuenta_comision": self.cuenta_comision,
+            "cuenta_diferencias": self.cuenta_diferencias,
             "prefijo_glosa": self.prefijo_glosa, "max_glosa": self.max_glosa, "receptor": self.receptor,
             "permitir_asiento_con_pendientes": self.permitir_asiento_con_pendientes,
         }
@@ -91,6 +93,7 @@ class Enlace:
     motivo_pago: str = ""          # por que no se encontro pago LUKA
     propuestas: list = field(default_factory=list)
     nota_manual: str = ""
+    ajuste: dict | None = None     # {cuenta, asignacion, texto} cuando el usuario confirma el ajuste de la diferencia
 
     @property
     def conciliada(self) -> bool:
@@ -236,6 +239,13 @@ class Conciliador:
             e.monto_banco_c, e.fecha_banco = monto_c, fecha
             e.diferencia_c = e.factura.neto_c - monto_c
             e.nota_manual = str(d.get("nota") or "")
+            if e.diferencia_c and str(d.get("ajuste_cuenta") or "").strip():
+                e.ajuste = {
+                    "cuenta": str(d["ajuste_cuenta"]).strip(),
+                    "asignacion": str(d.get("ajuste_asignacion") or asig).strip(),
+                    "texto": str(d.get("ajuste_texto") or f"AJ F-{fac} DIF BANCO").strip().upper(),
+                    "lado": "HABER" if e.diferencia_c < 0 else "DEBE",
+                }
             e.evidencia = f"Decisión manual ({origen})" + (f" · {e.nota_manual}" if e.nota_manual else "")
 
     # ---------------------------------------------------- 2. factura <-> pago LUKA
@@ -462,7 +472,8 @@ class Conciliador:
         tot = sum(e.factura.neto_c for e in E)
         tot_conc = sum(e.factura.neto_c for e in conc)
         comision = sum(e.comision_c for e in conc)
-        con_dif = [e for e in conc if e.diferencia_c]
+        con_dif = [e for e in conc if e.diferencia_c and not e.ajuste]
+        ajustadas = [e for e in conc if e.diferencia_c and e.ajuste]
         respaldo = sum((e.monto_banco_c or 0) + e.comision_c + e.diferencia_c for e in conc)
 
         usos = defaultdict(list)
@@ -496,8 +507,10 @@ class Conciliador:
             {"control": "Lotes LINKSER cuya suma neta no iguala el abono", "valor": len(lotes_mal), "ok": not lotes_mal, "detalle": ", ".join(lotes_mal)},
             {"control": "Tarjetas donde neto + comisión ≠ importe neto", "valor": len(tarjeta_mal), "ok": not tarjeta_mal},
             {"control": "Facturas pendientes", "valor": len(pend), "ok": not pend},
-            {"control": "Conciliaciones manuales con diferencia de monto", "valor": len(con_dif), "ok": not con_dif,
+            {"control": "Diferencias de monto sin ajuste contable", "valor": len(con_dif), "ok": not con_dif,
              "detalle": "; ".join(f"F-{e.factura.factura}: Bs {e.diferencia_c/100:,.2f}" for e in con_dif)},
+            {"control": "Diferencias ajustadas (revisar cuenta y asignación)", "valor": len(ajustadas), "ok": True,
+             "detalle": "; ".join(f"F-{e.factura.factura}: Bs {abs(e.diferencia_c)/100:,.2f} al {e.ajuste['lado']} de {e.ajuste['cuenta']}" for e in ajustadas)},
         ]
         bloqueos = []
         if pend and not self.p.permitir_asiento_con_pendientes:
@@ -546,7 +559,7 @@ class Conciliador:
             "asignacion": (e.abono.asig if e.abono else getattr(e, "asig_manual", None)),
             "fecha_banco": e.fecha_banco.isoformat() if e.fecha_banco else None,
             "monto_banco": bs(e.monto_banco_c), "comision": e.comision_c / 100, "diferencia": e.diferencia_c / 100,
-            "lote": e.lote, "evidencia": e.evidencia,
+            "lote": e.lote, "evidencia": e.evidencia, "ajuste": e.ajuste,
             "motivo": (e.motivo_pago or (f"Pago LUKA {x.codigo} sin abono bancario identificable" if x else "")) if not e.conciliada else "",
             "propuestas": e.propuestas,
         }

@@ -418,7 +418,9 @@ def leer_decisiones(nombre: str, data: bytes) -> Fuente:
         h, hs = _find_header(rows, REQ_DECISIONES)
         if h is None:
             continue
-        c = {k: _col(hs, k) for k in ("FACTURA", "ASIGNACION", "FECHABANCO", "MONTOBANCO", "NOTA", "DECISIONID")}
+        c = {k: _col(hs, k) for k in ("FACTURA", "ASIGNACION", "FECHABANCO", "MONTOBANCO", "NOTA", "DECISIONID",
+                                         "CUENTAAJUSTE", "ASIGNACIONAJUSTE", "TEXTOAJUSTE")}
+        c["ASIGNACION"] = next((j for j, h in enumerate(hs) if h == "ASIGNACION"), c["ASIGNACION"])
         fte = Fuente("DECISIONES", nombre, _sha(data))
         for r in rows[h + 1:]:
             fac, asig = _cell(r, c["FACTURA"]), _cell(r, c["ASIGNACION"])
@@ -429,6 +431,9 @@ def leer_decisiones(nombre: str, data: bytes) -> Fuente:
                 "fecha_banco": (to_date(_cell(r, c["FECHABANCO"])) or None),
                 "monto_banco": (to_cents(_cell(r, c["MONTOBANCO"])) or 0) / 100 or None,
                 "nota": str(_cell(r, c["NOTA"]) or ""), "origen": "ARCHIVO",
+                "ajuste_cuenta": str(_cell(r, c["CUENTAAJUSTE"]) or "").strip() or None,
+                "ajuste_asignacion": str(_cell(r, c["ASIGNACIONAJUSTE"]) or "").strip() or None,
+                "ajuste_texto": str(_cell(r, c["TEXTOAJUSTE"]) or "").strip() or None,
             })
         fte.filas = len(fte.registros)
         return fte
