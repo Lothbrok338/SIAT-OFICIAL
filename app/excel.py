@@ -72,13 +72,14 @@ def asiento_filas(enlaces: list[Enlace], p: Parametros) -> list[dict]:
     return filas
 
 
-def _header(ws, row, cols, widths=None):
+def _header(ws, row, cols, widths=None, freeze=True):
     for j, c in enumerate(cols, 1):
         cell = ws.cell(row=row, column=j, value=c)
         cell.fill, cell.font = F_HEAD, WHITE_B
         cell.alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
     ws.row_dimensions[row].height = 30
-    ws.freeze_panes = ws.cell(row=row + 1, column=1)
+    if freeze:
+        ws.freeze_panes = ws.cell(row=row + 1, column=1)
     if widths:
         for j, w in enumerate(widths, 1):
             ws.column_dimensions[get_column_letter(j)].width = w
@@ -134,8 +135,7 @@ def construir_excel(res: dict, p: Parametros) -> bytes:
         ("Receptor LUKA de la sede", res["receptor"] or "—", None),
     ]
     ws["A6"], ws["B6"] = "Indicador", "Valor"
-    _header(ws, 6, ["Indicador", "Valor"], [52, 22])
-    ws.freeze_panes = None
+    _header(ws, 6, ["Indicador", "Valor"], [52, 22], freeze=False)
     for i, (k, v, fmt) in enumerate(datos, 7):
         ws.cell(row=i, column=1, value=k)
         c = ws.cell(row=i, column=2, value=v)
