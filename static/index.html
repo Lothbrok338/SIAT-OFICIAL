@@ -110,6 +110,14 @@
         <label>Cuenta banco tarjeta<input name="cuenta_tarjeta" value="110103012"></label>
         <label>Cuenta comisión tarjeta<input name="cuenta_comision" value="110201007"></label>
         <label>Cuenta ajuste diferencias<input name="cuenta_diferencias" value="420101010"></label>
+        <label>Texto ajuste<input name="texto_ajuste" value="DIFERENCIA DE CAMBIO HOLALUKA" maxlength="50"></label>
+        <label>Asignación ajuste<input name="asignacion_ajuste" value="DIF.CBIO" maxlength="18"></label>
+        <label>SAP · Sociedad<input name="sociedad" value="BO01" maxlength="4"></label>
+        <label>SAP · Tipo de asiento<input name="tipo_asiento" value="DB" maxlength="2"></label>
+        <label>SAP · Centro de beneficio<input name="centro_beneficio" value="10010101" maxlength="10"></label>
+        <label>SAP · Cuenta recaudación (Haber)<input name="cuenta_recaudacion" value="110101001"></label>
+        <label>SAP · Texto recaudación<input name="texto_recaudacion" value="RECAUDACION HOLA-LUKA" maxlength="50"></label>
+        <label>SAP · Asignación recaudación<input name="asignacion_recaudacion" value="SINTESIS" maxlength="18"></label>
         <label>Prefijo glosa<input name="prefijo_glosa" value="F-"></label>
         <label>Máx. caracteres glosa<input name="max_glosa" value="50" inputmode="numeric"></label>
       </div>
@@ -125,7 +133,10 @@
     <div class="block-head">
       <span class="step-n">2</span>
       <div><h2>Resultado</h2><p id="resPeriodo"></p></div>
-      <button id="btnExcel" class="btn primary">Descargar Excel</button>
+      <div class="dl">
+        <button id="btnExcel" class="btn">Descargar Excel</button>
+        <button id="btnSap" class="btn primary" disabled>Liberar y descargar plantilla SAP</button>
+      </div>
     </div>
 
     <div id="banner" class="banner"></div>

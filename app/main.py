@@ -15,6 +15,8 @@ from fastapi.staticfiles import StaticFiles
 from .excel import construir_excel
 from .lectores import ErrorFuente, leer
 from .motor import VERSION, Parametros, conciliar
+from .sap import ErrorSAP, generar_plantilla
+from datetime import date
 
 MAX_MB = 25
 STATIC = Path(__file__).resolve().parent.parent / "static"
@@ -93,9 +95,19 @@ async def api_conciliar(
 
     res = conciliar(s, l, b, decs, p)
     xlsx = construir_excel(res, p)
+    res["sap_b64"], res["sap_resumen"], res["sap_error"] = None, None, None
+    if res["asiento_liberable"]:
+        try:
+            sap_bytes, res["sap_resumen"] = generar_plantilla(res["_enlaces"], p, date.fromisoformat(res["periodo"]["hasta"]))
+            res["sap_b64"] = base64.b64encode(sap_bytes).decode()
+        except ErrorSAP as exc:
+            res["sap_error"] = str(exc)
+    else:
+        res["sap_error"] = "La plantilla SAP se habilita cuando el asiento es liberable."
     res.pop("_enlaces", None)
     periodo = res["periodo"]["desde"][:7]
     res["excel_nombre"] = f"Conciliacion_HOLALUKA_{periodo}.xlsx"
     res["excel_b64"] = base64.b64encode(xlsx).decode()
+    res["sap_nombre"] = f"HOLALUKA_{periodo}_SAP.xlsx"
     res["decisiones_aplicadas"] = [{k: (v.isoformat() if hasattr(v, "isoformat") else v) for k, v in d.items()} for d in decs]
     return JSONResponse(json.loads(json.dumps(res, default=str)))

@@ -43,6 +43,18 @@ class Parametros:
     cuenta_tarjeta: str = "110103012"
     cuenta_comision: str = "110201007"
     cuenta_diferencias: str = "420101010"   # Varios otros: ajuste de diferencias confirmadas
+    texto_ajuste: str = "DIFERENCIA DE CAMBIO HOLALUKA"
+    asignacion_ajuste: str = "DIF.CBIO"
+    # Plantilla SAP S/4HANA (valores tomados del asiento aceptado HOLALUKA_2026-09)
+    sociedad: str = "BO01"
+    tipo_asiento: str = "DB"
+    centro_beneficio: str = "10010101"
+    cuenta_recaudacion: str = "110101001"
+    texto_recaudacion: str = "RECAUDACION HOLA-LUKA"
+    asignacion_recaudacion: str = "SINTESIS"
+    texto_cabecera: str = "HOLALUKA"
+    referencia: str = "HOLALUKA"
+    moneda: str = "BOB"
     prefijo_glosa: str = "F-"
     max_glosa: int = 50
     receptor: str = ""                 # vacio = deteccion automatica
@@ -59,7 +71,9 @@ class Parametros:
         for k in ("max_dias_linkser", "ventana_segundos", "max_glosa"):
             if d.get(k) not in (None, ""):
                 setattr(p, k, int(d[k]))
-        for k in ("cuenta_qr", "cuenta_tarjeta", "cuenta_comision", "cuenta_diferencias", "prefijo_glosa", "receptor"):
+        for k in ("cuenta_qr", "cuenta_tarjeta", "cuenta_comision", "cuenta_diferencias", "prefijo_glosa", "receptor",
+                  "texto_ajuste", "asignacion_ajuste", "sociedad", "tipo_asiento", "centro_beneficio", "cuenta_recaudacion",
+                  "texto_recaudacion", "asignacion_recaudacion", "texto_cabecera", "referencia", "moneda"):
             if d.get(k) is not None:
                 setattr(p, k, str(d[k]).strip())
         p.receptor = p.receptor.upper()
@@ -71,7 +85,11 @@ class Parametros:
             "comision_tarjeta": float(self.comision_tarjeta), "max_dias_linkser": self.max_dias_linkser,
             "ventana_segundos": self.ventana_segundos, "cuenta_qr": self.cuenta_qr,
             "cuenta_tarjeta": self.cuenta_tarjeta, "cuenta_comision": self.cuenta_comision,
-            "cuenta_diferencias": self.cuenta_diferencias,
+            "cuenta_diferencias": self.cuenta_diferencias, "texto_ajuste": self.texto_ajuste,
+            "asignacion_ajuste": self.asignacion_ajuste, "sociedad": self.sociedad, "tipo_asiento": self.tipo_asiento,
+            "centro_beneficio": self.centro_beneficio, "cuenta_recaudacion": self.cuenta_recaudacion,
+            "texto_recaudacion": self.texto_recaudacion, "asignacion_recaudacion": self.asignacion_recaudacion,
+            "texto_cabecera": self.texto_cabecera, "referencia": self.referencia, "moneda": self.moneda,
             "prefijo_glosa": self.prefijo_glosa, "max_glosa": self.max_glosa, "receptor": self.receptor,
             "permitir_asiento_con_pendientes": self.permitir_asiento_con_pendientes,
         }
@@ -242,8 +260,8 @@ class Conciliador:
             if e.diferencia_c and str(d.get("ajuste_cuenta") or "").strip():
                 e.ajuste = {
                     "cuenta": str(d["ajuste_cuenta"]).strip(),
-                    "asignacion": str(d.get("ajuste_asignacion") or asig).strip(),
-                    "texto": str(d.get("ajuste_texto") or f"AJ F-{fac} DIF BANCO").strip().upper(),
+                    "asignacion": str(d.get("ajuste_asignacion") or self.p.asignacion_ajuste).strip(),
+                    "texto": str(d.get("ajuste_texto") or self.p.texto_ajuste).strip().upper(),
                     "lado": "HABER" if e.diferencia_c < 0 else "DEBE",
                 }
             e.evidencia = f"Decisión manual ({origen})" + (f" · {e.nota_manual}" if e.nota_manual else "")

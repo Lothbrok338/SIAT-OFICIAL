@@ -31,3 +31,15 @@ def test_octubre_2026():
     exc = r["excepciones"][0]
     assert exc["factura"] == 16530 and exc["propuestas"][0]["asignacion"] == "3P13489723"
     assert exc["propuestas"][0]["diferencia"] == pytest.approx(-1.0)
+
+
+def test_octubre_plantilla_sap():
+    from datetime import date
+    from app.motor import Conciliador, Parametros
+    from app.sap import generar_plantilla
+    c = Conciliador(_fuente("SINTESIS"), _fuente("LUKA"), _fuente("BANCO"),
+                    [{"factura": 16530, "asignacion": "3P13489723", "ajuste_cuenta": "420101010"}], Parametros())
+    r = c.ejecutar()
+    assert r["asiento_liberable"]
+    _, s = generar_plantilla(r["_enlaces"], Parametros(), date(2026, 10, 31))
+    assert s["lineas"] == 224 and s["debe"] == s["haber"] == pytest.approx(487567.66)

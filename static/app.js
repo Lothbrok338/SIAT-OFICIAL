@@ -164,14 +164,22 @@
   $("#btnRun").addEventListener("click", run);
   $("#btnReprocess").addEventListener("click", run);
 
-  $("#btnExcel").addEventListener("click", () => {
-    const r = state.result; if (!r) return;
-    const bin = atob(r.excel_b64), buf = new Uint8Array(bin.length);
+  function descargar(b64, nombre) {
+    const bin = atob(b64), buf = new Uint8Array(bin.length);
     for (let i = 0; i < bin.length; i++) buf[i] = bin.charCodeAt(i);
     const url = URL.createObjectURL(new Blob([buf], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" }));
-    const a = Object.assign(document.createElement("a"), { href: url, download: r.excel_nombre });
+    const a = Object.assign(document.createElement("a"), { href: url, download: nombre });
     document.body.append(a); a.click(); a.remove();
     setTimeout(() => URL.revokeObjectURL(url), 2000);
+  }
+  $("#btnExcel").addEventListener("click", () => state.result && descargar(state.result.excel_b64, state.result.excel_nombre));
+  $("#btnSap").addEventListener("click", () => {
+    const r = state.result; if (!r || !r.sap_b64) return;
+    const s = r.sap_resumen;
+    const ok = confirm(`LIBERAR ASIENTO ${r.periodo.desde.slice(0, 7)}\n\n` +
+      `Líneas: ${s.lineas}\nDebe: Bs ${fmtBs(s.debe)}\nHaber: Bs ${fmtBs(s.haber)}\nFecha de contabilización: ${fmtD(s.fecha_contabilizacion)}\n\n` +
+      `¿Revisaste la conciliación y confirmas la liberación del asiento?`);
+    if (ok) descargar(r.sap_b64, r.sap_nombre);
   });
 
   // ------------------------------------------------ render resultado
@@ -200,7 +208,12 @@
     $("#ruleLegend").innerHTML = Object.entries(r.reglas).map(([k, name]) => `<li><i style="background:${RULE_COLOR[k]}"></i>${k} · ${esc(name)} <b>${s.por_regla[k]}</b></li>`).join("")
       + `<li><i style="background:var(--pend)"></i>Excepciones <b>${s.pendientes}</b></li>`;
 
-    $("#warnings").innerHTML = r.advertencias.map((w) => `<li>${esc(w)}</li>`).join("");
+    const warns = [...r.advertencias];
+    if (r.sap_error && r.asiento_liberable) warns.push(`Plantilla SAP: ${r.sap_error}`);
+    $("#warnings").innerHTML = warns.map((w) => `<li>${esc(w)}</li>`).join("");
+    const bs = $("#btnSap");
+    bs.disabled = !r.sap_b64;
+    bs.title = r.sap_b64 ? `${r.sap_resumen.lineas} líneas · Debe = Haber = Bs ${fmtBs(r.sap_resumen.debe)}` : (r.sap_error || "");
 
     const counts = { exc: r.excepciones.length, conc: r.conciliadas.length, abonos: r.abonos_sin_factura.filter((a) => a.en_periodo).length, lukasin: r.luka_sin_factura.length };
     $$("#tabs button").forEach((t) => { const sp = $("span", t); if (sp) sp.textContent = counts[t.dataset.tab]; });
@@ -300,8 +313,8 @@
         <p><b>Ajuste de la diferencia:</b> el banco abonó Bs ${fmtBs(p.monto)} y la factura es Bs ${fmtBs(x.neto)}. Se generará una línea de Bs ${fmtBs(Math.abs(p.diferencia))} al <b>${lado}</b>. Revisa y confirma.</p>
         <div class="manual">
           <label>Cuenta ajuste<input name="ajuste_cuenta" required value="${esc(params().cuenta_diferencias || "")}"></label>
-          <label>Asignación ajuste<input name="ajuste_asignacion" required value="${esc(p.asignacion)}"></label>
-          <label>Texto / glosa<input name="ajuste_texto" maxlength="50" value="AJ F-${x.factura} DIF BANCO"></label>
+          <label>Asignación ajuste<input name="ajuste_asignacion" required maxlength="18" value="${esc(params().asignacion_ajuste || p.asignacion)}"></label>
+          <label>Texto / glosa<input name="ajuste_texto" maxlength="50" value="${esc(params().texto_ajuste || "")}"></label>
           <label>Nota<input name="nota" placeholder="Motivo de la diferencia"></label>
           <button class="btn sm primary" type="submit">Confirmar con ajuste</button>
         </div></form>`);
@@ -327,7 +340,7 @@
     const monto = raw ? parseFloat(raw.includes(",") ? raw.replace(/\./g, "").replace(",", ".") : raw) : null;
     addDecision({ factura: +f.dataset.manual, asignacion: d.asignacion.trim(), fecha_banco: d.fecha_banco || null,
       monto_banco: Number.isFinite(monto) ? monto : null, nota: d.nota || "Confirmación manual",
-      ajuste_cuenta: (d.ajuste_cuenta || "").trim(), ajuste_asignacion: d.asignacion.trim() });
+      ajuste_cuenta: (d.ajuste_cuenta || "").trim() });
   });
 
   function addDecision(d) {

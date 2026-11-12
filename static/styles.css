@@ -212,3 +212,5 @@ td.ev { color: var(--muted); min-width: 260px; }
 .ajuste { margin-top: 14px; padding: 12px 14px; border-radius: 10px; background: var(--gold-soft); }
 .ajuste p { margin: 0 0 4px; font-size: 13.5px; }
 .ajuste .manual { grid-template-columns: 1fr 1fr 1.4fr 1.4fr auto; margin-top: 6px; }
+
+.dl { display: flex; gap: 10px; flex-wrap: wrap; }

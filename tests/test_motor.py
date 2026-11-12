@@ -250,7 +250,8 @@ def test_diferencia_con_ajuste_libera_y_genera_linea():
     filas = asiento_filas(res["_enlaces"], Parametros())
     assert [f["tipo"] for f in filas] == ["QR", "AJUSTE"]
     aj = filas[1]["valores"]
-    assert aj[11] == 1.0 and aj[12] == "3P00000099" and aj[14] == "420101010" and "HABER" in aj[16]
+    assert aj[11] == 1.0 and aj[12] == "DIF.CBIO" and aj[14] == "420101010" and "HABER" in aj[16]
+    assert aj[15] == "DIFERENCIA DE CAMBIO HOLALUKA"
     # el ajuste viaja en la hoja DECISIONES y se relee
     xlsx = construir_excel(res, Parametros())
     d = leer("prev.xlsx", xlsx)
@@ -261,3 +262,33 @@ def test_diferencia_con_ajuste_libera_y_genera_linea():
 def test_banco_menor_ajuste_al_debe():
     r = run([fac(1, 500, "A B")], [], [abono("3PX", 498, D)], [{"factura": 16001, "asignacion": "3PX", "ajuste_cuenta": "420101010"}])
     assert r["conciliadas"][0]["ajuste"]["lado"] == "DEBE" and r["asiento_liberable"]
+
+
+def test_plantilla_sap_cuadra_y_conserva_plantilla():
+    import zipfile
+    from app.sap import generar_plantilla, PLANTILLA
+    t = datetime(2026, 10, 7, 10, 0, 0)
+    fs = [fac(1, 930, "TARJETA UNO"), fac(2, 784, "QR DOS"), fac(3, 1106, "MANUAL TRES", date(2026, 10, 8))]
+    ps = [pago("T1", 930, "x", t, metodo="TARJETA"), pago("Q2", 784, "y", t), pago("M3", 1106, "z", t, datetime(2026, 10, 8, 9))]
+    ab = [abono("3PL", 916.98, date(2026, 10, 8), linkser=True), abono("3PQ", 784, D, luka="Q2"), abono("3PM", 1107, D, luka="M3")]
+    c = Conciliador(*fuentes(fs, ps, ab), [{"factura": 16003, "asignacion": "3PM", "ajuste_cuenta": "420101010"}], Parametros())
+    res = c.ejecutar()
+    assert res["asiento_liberable"]
+    data, resumen = generar_plantilla(res["_enlaces"], Parametros(), date(2026, 10, 31))
+    assert resumen["debe"] == resumen["haber"] == pytest.approx(916.98 + 13.02 + 784 + 1107)
+    ws = openpyxl.load_workbook(io.BytesIO(data)).worksheets[0]
+    assert [ws[c].value for c in ("B10", "C10", "F10", "H10")] == ["BO01", "DB", "10", "BOB"]
+    assert ws["E10"].value == datetime(2026, 10, 31)
+    filas = [[ws.cell(r, c).value for c in (3, 4, 5, 6, 12, 18)] for r in range(16, ws.max_row + 1)]
+    assert filas[0] == [110103012, "F-16002 QR DOS", 784, None, 10010101, "3PQ"]
+    assert [f[0] for f in filas] == [110103012, 110103012, 110201007, 110103012, 110101001, 110101001, 420101010]
+    assert filas[-1] == [420101010, "DIFERENCIA DE CAMBIO HOLALUKA", None, 1, 10010101, "DIF.CBIO"]
+    a, b = zipfile.ZipFile(PLANTILLA), zipfile.ZipFile(io.BytesIO(data))
+    cambiadas = {n for n in a.namelist() if a.read(n) != b.read(n)}
+    assert cambiadas == {"xl/worksheets/sheet1.xml", "xl/sharedStrings.xml", "xl/styles.xml"}
+
+
+def test_plantilla_sap_rechaza_descuadre():
+    from app.sap import ErrorSAP, LineaSAP, validar
+    with pytest.raises(ErrorSAP):
+        validar([LineaSAP("110103012", "X", 100, 0, D, "A", "QR")], Parametros())
