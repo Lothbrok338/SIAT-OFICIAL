@@ -1,0 +1,178 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Conciliador HOLALUKA</title>
+<meta name="description" content="Conciliación mensual de facturas automáticas: Síntesis NETVALLE, pagos LUKA y extracto bancario.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%230B2545'/%3E%3Ccircle cx='12' cy='13' r='5.5' fill='none' stroke='%23B08D57' stroke-width='2'/%3E%3Ccircle cx='20' cy='13' r='5.5' fill='none' stroke='%23fff' stroke-width='2'/%3E%3Ccircle cx='16' cy='20' r='5.5' fill='none' stroke='%23fff' stroke-width='2'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&family=Source+Serif+4:opsz,wght@8..60,500;8..60,600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/static/styles.css">
+</head>
+<body>
+<header class="topbar">
+  <div class="wrap topbar-in">
+    <a class="brand" href="/" aria-label="Conciliador HOLALUKA">
+      <svg viewBox="0 0 32 32" width="30" height="30" aria-hidden="true"><rect width="32" height="32" rx="7" fill="var(--ink)"/><circle cx="12" cy="13" r="5.5" fill="none" stroke="var(--gold)" stroke-width="2"/><circle cx="20" cy="13" r="5.5" fill="none" stroke="#fff" stroke-width="2"/><circle cx="16" cy="20" r="5.5" fill="none" stroke="#fff" stroke-width="2"/></svg>
+      <span><strong>Conciliador HOLALUKA</strong><small>Contabilidad · Sección Ingresos</small></span>
+    </a>
+    <span class="pill" title="Los archivos se procesan en memoria y se descartan al terminar"><span class="dot"></span>Sin almacenamiento de datos</span>
+  </div>
+</header>
+
+<main>
+  <section class="hero">
+    <div class="wrap hero-in">
+      <div class="hero-text">
+        <p class="eyebrow">Motor de conciliación v3</p>
+        <h1>Conciliación mensual de facturas automáticas</h1>
+        <p class="lead">Cada factura de Síntesis se enlaza con su pago LUKA y cada pago con su abono bancario. Solo se acepta un enlace cuando la evidencia es única; lo demás queda como excepción con propuestas.</p>
+        <ol class="chain" aria-label="Cadena de conciliación">
+          <li><b>Factura</b><span>Síntesis NETVALLE</span></li>
+          <li><b>Pago</b><span>LUKA</span></li>
+          <li><b>Abono</b><span>Extracto BNB</span></li>
+          <li><b>Asiento</b><span>SAP</span></li>
+        </ol>
+      </div>
+      <div class="hero-visual">
+        <canvas id="scene" aria-label="Representación 3D de las tres fuentes convergiendo en la conciliación"></canvas>
+        <div class="scene-labels" aria-hidden="true">
+          <span data-node="0">SÍNTESIS</span><span data-node="1">LUKA</span><span data-node="2">BANCO</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="wrap block" id="archivos">
+    <div class="block-head">
+      <span class="step-n">1</span>
+      <div>
+        <h2>Archivos del mes</h2>
+        <p>Carga estos tres archivos cada mes. Puedes soltarlos todos juntos en esta sección: el sistema reconoce cada uno por sus columnas y lo coloca en su casilla.</p>
+      </div>
+    </div>
+
+    <div class="slots" id="slots">
+      <article class="slot" data-tipo="SINTESIS">
+        <header><span class="badge">1</span><h3>Síntesis NETVALLE</h3><span class="req">Obligatorio</span></header>
+        <dl>
+          <dt>Qué es</dt><dd>Reporte de facturas de la caja <b>SINTESISCB</b> (Contabilidad · Sección Ingresos).</dd>
+          <dt>Período</dt><dd>El mes a conciliar, del 1 al último día.</dd>
+          <dt>Formato</dt><dd>Excel <code>.xlsx</code> con columnas <i>Nº de Factura</i> e <i>Importe Neto (Bs.)</i>.</dd>
+        </dl>
+        <label class="drop"><input type="file" accept=".xlsx,.xls,.xlsm" hidden><span class="drop-txt">Seleccionar o soltar archivo</span></label>
+        <div class="status" aria-live="polite"></div>
+      </article>
+
+      <article class="slot" data-tipo="LUKA">
+        <header><span class="badge">2</span><h3>Pagos LUKA</h3><span class="req">Obligatorio</span></header>
+        <dl>
+          <dt>Qué es</dt><dd>Exportación de pagos de LUKA: <code>luka-pagos-AAAA-MM-01-AAAA-MM-DD.csv</code>.</dd>
+          <dt>Período</dt><dd>El mismo mes completo (todas las sedes; el sistema filtra la tuya).</dd>
+          <dt>Formato</dt><dd>CSV con <i>Código</i>, <i>Fecha de cumplimiento</i> y <i>Receptor personalizado</i>.</dd>
+        </dl>
+        <label class="drop"><input type="file" accept=".csv,.txt" hidden><span class="drop-txt">Seleccionar o soltar archivo</span></label>
+        <div class="status" aria-live="polite"></div>
+      </article>
+
+      <article class="slot" data-tipo="BANCO">
+        <header><span class="badge">3</span><h3>Extracto bancario BNB</h3><span class="req">Obligatorio</span></header>
+        <dl>
+          <dt>Qué es</dt><dd>Extracto de la cuenta recaudadora tal como lo descarga el banco. También acepta la hoja <i>Tablas Dinámicas Profesional</i>.</dd>
+          <dt>Período</dt><dd>Del 1 del mes <b>hasta el día 5 del mes siguiente</b> (LINKSER y pagos de fin de mes se acreditan después).</dd>
+          <dt>Formato</dt><dd>Excel con <i>Código de transacción</i>, <i>Créditos</i>, <i>Hora</i> y <i>Adicionales</i>.</dd>
+        </dl>
+        <label class="drop"><input type="file" accept=".xlsx,.xls,.xlsm" hidden><span class="drop-txt">Seleccionar o soltar archivo</span></label>
+        <div class="status" aria-live="polite"></div>
+      </article>
+
+      <article class="slot optional" data-tipo="DECISIONES">
+        <header><span class="badge">4</span><h3>Decisiones anteriores</h3><span class="req opt">Opcional</span></header>
+        <dl>
+          <dt>Qué es</dt><dd>El Excel que descargaste de una corrida anterior, si registraste confirmaciones manuales (hoja <i>DECISIONES</i>).</dd>
+          <dt>Cuándo</dt><dd>Al reprocesar el mismo mes o si un abono de otro mes respalda una factura.</dd>
+        </dl>
+        <label class="drop"><input type="file" accept=".xlsx" hidden><span class="drop-txt">Seleccionar o soltar archivo</span></label>
+        <div class="status" aria-live="polite"></div>
+      </article>
+    </div>
+
+    <details class="params">
+      <summary>Parámetros contables</summary>
+      <div class="params-grid">
+        <label>Comisión tarjeta (%)<input name="comision_tarjeta" value="1.40" inputmode="decimal"></label>
+        <label>Máx. días liquidación LINKSER<input name="max_dias_linkser" value="4" inputmode="numeric"></label>
+        <label>Ventana hora intento (segundos)<input name="ventana_segundos" value="120" inputmode="numeric"></label>
+        <label>Receptor LUKA de la sede<input name="receptor" placeholder="Automático"></label>
+        <label>Cuenta banco QR<input name="cuenta_qr" value="110103012"></label>
+        <label>Cuenta banco tarjeta<input name="cuenta_tarjeta" value="110103012"></label>
+        <label>Cuenta comisión tarjeta<input name="cuenta_comision" value="110201007"></label>
+        <label>Prefijo glosa<input name="prefijo_glosa" value="F-"></label>
+        <label>Máx. caracteres glosa<input name="max_glosa" value="50" inputmode="numeric"></label>
+      </div>
+    </details>
+
+    <div class="run">
+      <button id="btnRun" class="btn primary" disabled>Conciliar</button>
+      <p id="runMsg" class="muted">Faltan archivos obligatorios.</p>
+    </div>
+  </section>
+
+  <section class="wrap block" id="resultado" hidden>
+    <div class="block-head">
+      <span class="step-n">2</span>
+      <div><h2>Resultado</h2><p id="resPeriodo"></p></div>
+      <button id="btnExcel" class="btn primary">Descargar Excel</button>
+    </div>
+
+    <div id="banner" class="banner"></div>
+    <div class="kpis" id="kpis"></div>
+    <div class="rules">
+      <div class="bar" id="ruleBar"></div>
+      <ul class="legend" id="ruleLegend"></ul>
+    </div>
+    <ul id="warnings" class="warnings"></ul>
+
+    <nav class="tabs" role="tablist" id="tabs">
+      <button role="tab" data-tab="exc" aria-selected="true">Excepciones <span></span></button>
+      <button role="tab" data-tab="conc">Conciliadas <span></span></button>
+      <button role="tab" data-tab="abonos">Abonos sin factura <span></span></button>
+      <button role="tab" data-tab="lukasin">LUKA sin factura <span></span></button>
+      <button role="tab" data-tab="ctrl">Controles</button>
+    </nav>
+    <div class="tabpanes">
+      <div data-pane="exc" id="paneExc"></div>
+      <div data-pane="conc" hidden>
+        <input id="search" class="search" placeholder="Buscar factura, alumno, asignación o código LUKA">
+        <div class="tablewrap"><table id="tblConc"></table></div>
+      </div>
+      <div data-pane="abonos" hidden><div class="tablewrap"><table id="tblAbonos"></table></div></div>
+      <div data-pane="lukasin" hidden><div class="tablewrap"><table id="tblLuka"></table></div></div>
+      <div data-pane="ctrl" hidden><div class="tablewrap"><table id="tblCtrl"></table></div></div>
+    </div>
+
+    <div class="decisions" id="decisionsBox" hidden>
+      <div>
+        <h3>Decisiones de esta sesión</h3>
+        <p class="muted">Se aplican antes del cruce automático. Quedan guardadas en la hoja DECISIONES del Excel.</p>
+        <ul id="decisionsList"></ul>
+      </div>
+      <button id="btnReprocess" class="btn primary">Reprocesar con decisiones</button>
+    </div>
+  </section>
+</main>
+
+<footer class="wrap foot">
+  <p>Los archivos se procesan en memoria y se descartan al terminar. El Excel descargado contiene la huella SHA-256 de cada archivo para auditoría.</p>
+  <p id="ver"></p>
+</footer>
+
+<div id="dropveil" class="dropveil" hidden><div>Suelta los archivos del mes</div></div>
+
+<script src="/static/vendor/three.min.js"></script>
+<script src="/static/scene.js"></script>
+<script src="/static/app.js"></script>
+</body>
+</html>

@@ -1,0 +1,12 @@
+__pycache__/
+*.pyc
+.pytest_cache/
+.venv/
+# Nunca versionar datos reales
+*.xlsx
+*.xlsm
+*.xls
+*.csv
+
+# Datos reales: no subir mientras el repo sea publico
+datos/
