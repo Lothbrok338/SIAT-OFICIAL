@@ -7,3 +7,6 @@ __pycache__/
 *.xlsm
 *.xls
 *.csv
+
+# Datos reales: no subir mientras el repo sea publico
+datos/
