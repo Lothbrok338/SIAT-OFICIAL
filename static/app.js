@@ -3,7 +3,7 @@
   const $ = (s, el = document) => el.querySelector(s);
   const $$ = (s, el = document) => [...el.querySelectorAll(s)];
   const ORDER = ["SINTESIS", "LUKA", "BANCO"];
-  const LABEL = { SINTESIS: "Síntesis NETVALLE", LUKA: "Pagos LUKA", BANCO: "Extracto bancario", DECISIONES: "Decisiones anteriores" };
+  const LABEL = { SINTESIS: "Facturas NETVALLE", LUKA: "Pagos LUKA", BANCO: "Extracto bancario", DECISIONES: "Decisiones anteriores" };
   const RULE_COLOR = { R1: "var(--r1)", R2: "var(--r2)", R3: "var(--r3)", R4: "var(--r4)", R5: "var(--r5)", M: "var(--m)" };
   const state = { files: {}, info: {}, decisiones: [], result: null, busy: false };
   const money = new Intl.NumberFormat("es-BO", { minimumFractionDigits: 2, maximumFractionDigits: 2 });

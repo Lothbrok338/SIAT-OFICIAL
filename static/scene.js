@@ -26,7 +26,7 @@
   renderer.setPixelRatio(Math.min(devicePixelRatio || 1, 2));
   const scene = new THREE.Scene();
   const camera = new THREE.PerspectiveCamera(36, 1, 0.1, 100);
-  camera.position.set(0, 1.4, 9.2);
+  camera.position.set(0, 0.6, 9.8);
 
   scene.add(new THREE.AmbientLight(0xffffff, dark ? 0.45 : 0.65));
   const key = new THREE.DirectionalLight(0xffffff, 0.9);
@@ -49,7 +49,7 @@
   root.add(core);
 
   // Nodos (fuentes)
-  const R = 2.75;
+  const R = 2.45;
   const nodes = [];
   for (let i = 0; i < 3; i++) {
     const a = -Math.PI / 2 + (i * 2 * Math.PI) / 3 + Math.PI;
@@ -94,6 +94,7 @@
   scene.add(new THREE.Points(starGeo, new THREE.PointsMaterial({ color: C.line, size: 0.035 })));
 
   const labels = document.querySelectorAll(".scene-labels span");
+  let phase = 0;
   let status = "idle", speed = 0.25, targetSpeed = 0.25, ringColor = C.ink2.clone();
   const mouse = { x: 0, y: 0 };
   canvas.parentElement.addEventListener("pointermove", (e) => {
@@ -107,7 +108,7 @@
     if (!w || !h) return;
     renderer.setSize(w, h, false);
     camera.aspect = w / h;
-    camera.position.z = w / h < 1.1 ? 11 : 9.2;
+    camera.position.z = w / h < 1.1 ? 11.5 : 9.8;
     camera.updateProjectionMatrix();
   }
   new ResizeObserver(resize).observe(canvas);
@@ -133,7 +134,8 @@
     const dt = Math.max(0, Math.min((now - last) / 1000, 0.05));
     last = now;
     speed += (targetSpeed - speed) * 0.05;
-    root.rotation.y += dt * speed * 0.35;
+    phase += dt * speed * 0.35;
+    root.rotation.y = Math.sin(phase) * 0.32 + mouse.x * 0.25;
     root.rotation.x += ((-mouse.y * 0.25) - root.rotation.x) * 0.04;
     root.rotation.z += ((mouse.x * 0.1) - root.rotation.z) * 0.04;
     ring.rotation.x = Math.PI / 2.4 + Math.sin(now / 2400) * 0.12;

@@ -28,18 +28,18 @@
       <div class="hero-text">
         <p class="eyebrow">Motor de conciliación v3</p>
         <h1>Conciliación mensual de facturas automáticas</h1>
-        <p class="lead">Cada factura de Síntesis se enlaza con su pago LUKA y cada pago con su abono bancario. Solo se acepta un enlace cuando la evidencia es única; lo demás queda como excepción con propuestas.</p>
+        <p class="lead">Cada factura de NETVALLE se enlaza con su pago LUKA y cada pago con su abono bancario. Solo se acepta un enlace cuando la evidencia es única; lo demás queda como excepción con propuestas.</p>
         <ol class="chain" aria-label="Cadena de conciliación">
-          <li><b>Factura</b><span>Síntesis NETVALLE</span></li>
-          <li><b>Pago</b><span>LUKA</span></li>
+          <li><b>Factura</b><span>NETVALLE</span></li>
+          <li><b>Pago</b><span>LUKA · Síntesis</span></li>
           <li><b>Abono</b><span>Extracto BNB</span></li>
           <li><b>Asiento</b><span>SAP</span></li>
         </ol>
       </div>
       <div class="hero-visual">
-        <canvas id="scene" aria-label="Representación 3D de las tres fuentes convergiendo en la conciliación"></canvas>
+        <canvas id="scene" aria-label="Representación 3D de NETVALLE, LUKA y banco convergiendo en la conciliación"></canvas>
         <div class="scene-labels" aria-hidden="true">
-          <span data-node="0">SÍNTESIS</span><span data-node="1">LUKA</span><span data-node="2">BANCO</span>
+          <span data-node="0">NETVALLE</span><span data-node="1">LUKA</span><span data-node="2">BANCO</span>
         </div>
       </div>
     </div>
@@ -56,7 +56,7 @@
 
     <div class="slots" id="slots">
       <article class="slot" data-tipo="SINTESIS">
-        <header><span class="badge">1</span><h3>Síntesis NETVALLE</h3><span class="req">Obligatorio</span></header>
+        <header><span class="badge">1</span><h3>Facturas NETVALLE</h3><span class="req">Obligatorio</span></header>
         <dl>
           <dt>Qué es</dt><dd>Reporte de facturas de la caja <b>SINTESISCB</b> (Contabilidad · Sección Ingresos).</dd>
           <dt>Período</dt><dd>El mes a conciliar, del 1 al último día.</dd>
